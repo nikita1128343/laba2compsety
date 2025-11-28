@@ -364,3 +364,200 @@ int main() {
     WSACleanup();
     return 0;
 }
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma warning(disable: 4996)
+
+#include <iostream>
+#include <winsock2.h>
+#include <string>
+
+using namespace std;
+
+#pragma comment(lib, "ws2_32.lib")
+
+struct Student {
+    int id;
+    char name[50];
+    char faculty[50];
+    int course;
+    double averageGrade;
+    char evaluation[100];  // Новое поле для оценки
+};
+
+// Функция для оценки успеваемости студента
+void evaluateStudent(Student& student) {
+    if (student.averageGrade >= 4.5) {
+        strcpy(student.evaluation, "ОТЛИЧНО - рекомендован для повышенной стипендии");
+    }
+    else if (student.averageGrade >= 3.8) {
+        strcpy(student.evaluation, "ХОРОШО - стабильная успеваемость");
+    }
+    else if (student.averageGrade >= 3.0) {
+        strcpy(student.evaluation, "УДОВЛЕТВОРИТЕЛЬНО - требуется улучшение");
+    }
+    else if (student.averageGrade >= 2.5) {
+        strcpy(student.evaluation, "НИЖЕ СРЕДНЕГО - академический риск");
+    }
+    else {
+        strcpy(student.evaluation, "НЕУДОВЛЕТВОРИТЕЛЬНО - угроза отчисления");
+    }
+}
+
+void printStudent(const Student& s) {
+    cout << "Студент #" << s.id << endl;
+    cout << "Имя: " << s.name << endl;
+    cout << "Факультет: " << s.faculty << endl;
+    cout << "Курс: " << s.course << endl;
+    cout << "Средний балл: " << s.averageGrade << endl;
+    cout << "Оценка: " << s.evaluation << endl;  // Добавляем вывод оценки
+    cout << "-----------------------------" << endl;
+}
+
+int main() {
+    WSADATA wsaData;
+    SOCKET serverSocket;
+    sockaddr_in serverAddr, clientAddr;
+    int clientAddrSize = sizeof(clientAddr);
+    setlocale(LC_ALL, "RUS");
+    
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+    // Создание UDP-сокета
+    serverSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+    // Настройка адреса сервера
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(9999);
+
+    bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
+    cout << "UDP Сервер деканата с системой оценки запущен..." << endl;
+
+    while (true) {
+        Student receivedStudent;
+
+        // Получение данных от клиента
+        int bytesReceived = recvfrom(serverSocket, (char*)&receivedStudent, sizeof(receivedStudent), 0,
+            (sockaddr*)&clientAddr, &clientAddrSize);
+
+        if (bytesReceived > 0) {
+            cout << "Получены данные студента:" << endl;
+            printStudent(receivedStudent);
+
+            // ВЫЗОВ ФУНКЦИИ ОЦЕНКИ СТУДЕНТА
+            evaluateStudent(receivedStudent);
+            
+            cout << "После оценки: " << receivedStudent.evaluation << endl;
+
+            // Отправка обработанных данных с оценкой
+            sendto(serverSocket, (char*)&receivedStudent, sizeof(receivedStudent), 0,
+                (sockaddr*)&clientAddr, clientAddrSize);
+
+            cout << "Данные с оценкой отправлены клиенту" << endl;
+        }
+    }
+
+    closesocket(serverSocket);
+    WSACleanup();
+    return 0;
+}
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma warning(disable: 4996)
+
+#include <iostream>
+#include <winsock2.h>
+#include <string>
+
+using namespace std;
+
+#pragma comment(lib, "ws2_32.lib")
+
+struct Student {
+    int id;
+    char name[50];
+    char faculty[50];
+    int course;
+    double averageGrade;
+    char evaluation[100];  // Новое поле для оценки
+};
+
+void printStudent(const Student& s) {
+    cout << "Данные студента:" << endl;
+    cout << "ID: " << s.id << endl;
+    cout << "Имя: " << s.name << endl;
+    cout << "Факультет: " << s.faculty << endl;
+    cout << "Курс: " << s.course << endl;
+    cout << "Средний балл: " << s.averageGrade << endl;
+    cout << "ОЦЕНКА УСПЕВАЕМОСТИ: " << s.evaluation << endl;  // Добавляем вывод оценки
+    cout << "=============================" << endl;
+}
+
+int main() {
+    WSADATA wsaData;
+    SOCKET clientSocket;
+    sockaddr_in serverAddr;
+    int serverAddrSize = sizeof(serverAddr);
+    setlocale(LC_ALL, "RUS");
+    
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+    // Создание UDP-сокета
+    clientSocket = socket(AF_INET, SOCK_DGRAM, 0);
+
+    // Настройка адреса сервера
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serverAddr.sin_port = htons(9999);
+
+    cout << "UDP Клиент деканата запущен" << endl;
+    cout << "Вводите данные студентов (для выхода введите 'exit' в имени)" << endl;
+
+    int studentId = 1;
+    string input;
+
+    while (true) {
+        Student student;
+        student.id = studentId++;
+
+        cout << "\nВведите имя студента: ";
+        getline(cin, input);
+        if (input == "exit") break;
+        strcpy(student.name, input.c_str());
+
+        cout << "Введите факультет: ";
+        getline(cin, input);
+        strcpy(student.faculty, input.c_str());
+
+        cout << "Введите курс: ";
+        cin >> student.course;
+        cin.ignore();
+
+        cout << "Введите средний балл: ";
+        cin >> student.averageGrade;
+        cin.ignore();
+
+        // Инициализируем поле оценки пустой строкой
+        strcpy(student.evaluation, "Ожидание оценки...");
+
+        // Отправка данных серверу
+        sendto(clientSocket, (char*)&student, sizeof(student), 0,
+            (sockaddr*)&serverAddr, serverAddrSize);
+
+        cout << "Данные отправлены в деканат..." << endl;
+
+        // Получение ответа с оценкой
+        Student evaluatedStudent;
+        int bytesReceived = recvfrom(clientSocket, (char*)&evaluatedStudent, sizeof(evaluatedStudent), 0,
+            (sockaddr*)&serverAddr, &serverAddrSize);
+
+        if (bytesReceived > 0) {
+            cout << "Получена оценка от деканата:" << endl;
+            printStudent(evaluatedStudent);
+        }
+    }
+
+    cout << "Работа завершена" << endl;
+    closesocket(clientSocket);
+    WSACleanup();
+    return 0;
+}
